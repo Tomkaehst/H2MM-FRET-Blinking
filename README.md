@@ -17,7 +17,7 @@ Simulates state exchange dynamics to explore transitions between molecular state
 Models dye blinking effects in smFRET experiments, enabling accurate artifact correction and improved data interpretation.
 
 
-Follow the instructions in the notebook to run simulations or analyses.
+Follow the instructions in the notebook to run simulations. Use 'Check_PIE_Sim.ipynb' for H2MM analysis of simulated data (using bursth2mm).
 
 ## License
 
