@@ -45,7 +45,7 @@ def dwell_ES_histprojection(model, ax=None, states=None, figsize=None, plot_rang
     """
 
     if states is None:
-        states = np.unique(model.dwell_pos)
+        states = np.unique(model.dwell_state)
     if figsize is None:
         figsize = (6, 6)
     if plot_ranges is None:
