@@ -378,4 +378,33 @@ def count_dwells(model: bhm.H2MM_result, selection_idxs: list) -> int:
         n_dwells += np.where(model.burst_type == int(selection_idx))[0].shape[0]
     
     return n_dwells
+
+
+
+def get_purification_mask(model: bhm.H2MM_result, select_states: list) -> np.array:
+    """
+    Returns a selection mask of bursts which contain the dwells of the 
+    H2MM_results model provided. 
+
+    Parameters
+    ----------
+    model: bhm.H2MM_result
+        H2MM model containing burst dwell classification as 'burst_type'
+        attribute
+    selected_states: list of binary
+        States/dwells to select
+
+    Returns
+    -------
+    Indices of selected bursts based on the H2MM_results classification.
     
+    Selected states should be supplied as binary. For example, to select 
+    bursts that dwelled in state 0, state 1, and states 0 and 1:
+        [0b0001, 0b0010, 0b0011]
+
+    Example
+    -------
+    purified_bursts = get_purification_mask(mp.models[model_id], select_states=[0b0001, 0b0010, 0b0011])
+    ds_purified = ds.select_bursts_mask_apply(purified_bursts)
+    """
+    return np.where(np.isin(model.burst_type, select_states))
