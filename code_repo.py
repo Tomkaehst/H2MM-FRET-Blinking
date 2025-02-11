@@ -95,10 +95,10 @@ def dwell_ES_histprojection(model, ax=None, states=None, figsize=None, plot_rang
     ax_main.set_ylim(*plot_ranges[1])
     ax_xhist.set_xlim(*plot_ranges[0])
     ax_xhist.grid(visible=True, axis='both', linestyle='-', alpha=0.75)
-    ax_xhist.set_ylabel("# Bursts")
+    ax_xhist.set_ylabel("# Dwells")
     ax_yhist.set_ylim(*plot_ranges[1])
     ax_yhist.grid(visible=True, axis='both', linestyle='-', alpha=0.75)
-    ax_yhist.set_xlabel("# Bursts")
+    ax_yhist.set_xlabel("# Dwells")
     ax_main.set_xlabel(r'$E$')
     ax_main.set_ylabel(r'$S$')
 
