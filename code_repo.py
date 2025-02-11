@@ -71,7 +71,7 @@ def dwell_ES_histprojection(model, ax=None, states=None, figsize=None, plot_rang
 
     # Extract E and S dwells
     dwells_idx, dwells_E, dwells_S = [], [], []
-    for dwell in np.unique(model.dwell_pos):
+    for dwell in np.unique(model.dwell_state):
         indices = np.where(model.dwell_state == dwell)[0]
         dwells_idx.append(indices)
         dwells_E.append(model.dwell_E[indices])
