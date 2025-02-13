@@ -340,8 +340,8 @@ def BVA(data, chunck_size):
         # create lists to store values for burst in channel
         stdE, E = list(), list()
         # get masking arrays before iterating over bursts
-        Aem = data.get_ph_mask(ich=ich, ph_sel=fretbursts.Ph_sel(Dex='Aem')) # get acceptor instances to calculate E
-        Dex = data.get_ph_mask(ich=ich, ph_sel=fretbursts.Ph_sel(Dex='DAem')) # get Dex mask to remove Aex photons
+        Aem = data.get_ph_mask(ich=ich, ph_sel=frb.Ph_sel(Dex='Aem')) # get acceptor instances to calculate E
+        Dex = data.get_ph_mask(ich=ich, ph_sel=frb.Ph_sel(Dex='DAem')) # get Dex mask to remove Aex photons
         for istart, istop in zip(mburst.istart, mburst.istop): # iterate over each burst
             phots = Aem[istart:istop+1][Dex[istart:istop+1]] # Dex photons in burst True if Aem and False if Dem
             # list of number of Aem in each chunch, easier as list comprehansion
