@@ -408,3 +408,43 @@ def get_purification_mask(model: bhm.H2MM_result, select_states: list) -> np.arr
     ds_purified = ds.select_bursts_mask_apply(purified_bursts)
     """
     return np.where(np.isin(model.burst_type, select_states))
+
+
+def get_burst_state_dwell_time(model: bhm.BurstSort.H2MM_result, state: int) -> np.array:
+    """
+    Returns the time in ms that a state was found in the given
+    list of bursts.
+    The H2MM_result knows both the list and trajectory of DWELLS
+    and the dwells in a burst. Since we want to represent the
+    ES plot (in the traditional sense), the persistence time
+    of the asked for state needs to be calculated on a burst
+    and not a dwell basis!
+
+    Arguments
+    ---
+    model: bhm.BurstSort.H2MM_result 
+        Result from an burstH2MM run
+    state_color: int
+        State to be represented by the color
+    c_range: list[int]
+        Min and max range for the color map.
+
+    Returns
+    ---
+    burst_state_dur: np.array
+        Duration a state was found in a burst, in milliseconds.
+    """
+    n_bursts = model.burst_type.shape[0]
+    n_dwells = model.burst_dwell_num.shape[0]
+    dwells_per_burst = model.burst_dwell_num # No. of identified dwells in each burst
+
+    burst_state_dur = np.zeros(shape = (n_bursts), dtype=np.float32)
+
+    for burst in range(n_bursts):
+        dwell_index = burst
+        for dwell in range(dwells_per_burst[burst]):
+            if model.dwell_state[dwell_index] == state:
+                burst_state_dur[burst] += model.dwell_dur[dwell_index]
+            dwell_index += 1
+
+    return burst_state_dur
