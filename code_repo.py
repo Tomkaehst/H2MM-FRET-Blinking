@@ -435,16 +435,19 @@ def get_burst_state_dwell_time(model: bhm.BurstSort.H2MM_result, state: int) -> 
         Duration a state was found in a burst, in milliseconds.
     """
     n_bursts = model.burst_type.shape[0]
-    n_dwells = model.burst_dwell_num.shape[0]
+    n_dwells = model.dwell_dur.shape[0]
     dwells_per_burst = model.burst_dwell_num # No. of identified dwells in each burst
 
     burst_state_dur = np.zeros(shape = (n_bursts), dtype=np.float32)
 
+    dwell_index = 0
+
     for burst in range(n_bursts):
-        dwell_index = burst
         for dwell in range(dwells_per_burst[burst]):
-            if model.dwell_state[dwell_index] == state:
+            if np.isin(model.dwell_state[dwell_index], state):#model.dwell_state[dwell_index] == state:
                 burst_state_dur[burst] += model.dwell_dur[dwell_index]
             dwell_index += 1
+
+    print(dwell_index, n_dwells)
 
     return burst_state_dur
