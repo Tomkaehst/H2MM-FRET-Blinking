@@ -102,7 +102,7 @@ def dwell_ES_histprojection(model, ax=None, states=None, figsize=None, plot_rang
     ax_main.set_xlabel(r'$E$')
     ax_main.set_ylabel(r'$S$')
 
-return fix, ax_main, ax_xhist, ax_yhist
+return fit, ax_main, ax_xhist, ax_yhist
 
 
 # Defining helper functions to process raw data
