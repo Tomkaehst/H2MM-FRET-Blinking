@@ -1,3 +1,6 @@
+### THIS REPO IS ARCHIVED. THE MOST RECENT VERSION CAN BE FOUND HERE: https://gitlab.com/dynamic-bioimaging/H2MM-FRET-Blinking
+
+
 # H2MM Simulation Tools
 
 This repository provides a suite of Jupyter notebooks for simulating and analyzing smFRET dynamics. The tools focus on trajectory generation, state exchange modeling, and dye blinking effects, providing robust solutions for studying single-molecule FRET systems.
