@@ -195,11 +195,24 @@ class LightSheetPSF:
         """2D detection PSF on the focal plane (nx, nx), sum-normalized.
 
         Suited as convolution kernel to distribute photon counts over
-        camera pixels.
+        camera pixels. See `detection_kernel` for the z-dependent kernel.
         """
-        k = self.detection_psf[self.nz_half].astype(np.float64)
-        s = k.sum()
-        return k / s if s > 0 else k
+        return self.detection_kernel(0.0)
+
+    def detection_kernel(self, z):
+        """Sum-normalized 2D detection PSF at defocus `z` (meters).
+
+        The detection PSF of a widefield/camera system broadens with
+        defocus; each z plane of the precomputed psfmodels volume is
+        sum-normalized so that photon counts are conserved (the particle
+        emits the same number of photons, the spot just spreads out).
+        """
+        z_um = np.asarray(z, dtype=np.float64) * 1e6
+        iz = np.clip(np.round(z_um / self.dz).astype(int) + self.nz_half,
+                     0, 2 * self.nz_half)
+        k = self.detection_psf[iz].astype(np.float64)
+        s = k.sum(axis=(-1, -2), keepdims=True)
+        return np.divide(k, s, out=np.zeros_like(k), where=s > 0)
 
     def excitation_weights(self, z):
         """Excitation sheet intensity at heights `z` (meters)."""
@@ -238,10 +251,22 @@ class LightSheetPSF:
         edges = np.linspace(-half, half, roi + 1)
         exc = self.excitation_weights(z[:, t_slice])
         weights = em_rate * t_step * exc
-        H, _, _ = np.histogram2d(y[:, t_slice].ravel(),
-                                 x[:, t_slice].ravel(),
-                                 bins=[edges, edges], weights=weights.ravel())
-        img = fftconvolve(H, self.focal_plane_psf, mode='same')
+        # Bin the emission of each particle separately per z slice, so
+        # that each particle is convolved with the detection kernel at
+        # its own defocus (the camera PSF broadens away from focus).
+        img = np.zeros((roi, roi), dtype=np.float64)
+        # Unique z planes present in this time slice
+        zslice = z[:, t_slice]
+        iz = np.clip(np.round(zslice * 1e6 / self.dz).astype(int)
+                     + self.nz_half, 0, 2 * self.nz_half)
+        for z_idx in np.unique(iz):
+            mask = iz == z_idx
+            H, _, _ = np.histogram2d(y[:, t_slice][mask].ravel(),
+                                     x[:, t_slice][mask].ravel(),
+                                     bins=[edges, edges],
+                                     weights=weights[mask].ravel())
+            kernel = self.detection_kernel((z_idx - self.nz_half) * self.dz * 1e-6)
+            img += fftconvolve(H, kernel, mode='same')
         return np.clip(img, 0.0, None)
 
     def render_camera_frames(self, positions, t_step=1e-3, frame_steps=50,
