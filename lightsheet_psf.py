@@ -71,14 +71,14 @@ class LightSheetPSF:
                 assert str(psf_pytables.attrs['kind']) == self.kind
             self.psf_volume = psf_pytables[:]
             for name in ['dxy', 'nx', 'dz', 'nz_half', 'det_NA', 'em_wvl',
-                         'ex_wvl', 'sheet_NA', 'ns']:
+                         'ex_wvl', 'sheet_NA', 'ns', 'ni0', 'ni']:
                 setattr(self, name, psf_pytables.get_attr(name))
         else:
             self.dxy, self.nx = dxy, nx
             self.dz, self.nz_half = dz, nz_half
             self.det_NA, self.em_wvl = det_NA, em_wvl
             self.ex_wvl, self.sheet_NA = ex_wvl, sheet_NA
-            self.ns = ns
+            self.ns, self.ni0, self.ni = ns, ni0, ni
             self._build_psf(ns=ns, ni0=ni0, ni=ni, ng0=ng0, ng=ng,
                             tg=tg, tg0=tg0, ti0=ti0)
         self._build_axes()
@@ -158,7 +158,8 @@ class LightSheetPSF:
         s = (f'LightSheetPSF(dxy={self.dxy}, nx={self.nx}, dz={self.dz}, '
              f'nz_half={self.nz_half}, det_NA={self.det_NA}, '
              f'em_wvl={self.em_wvl}, ex_wvl={self.ex_wvl}, '
-             f'sheet_NA={self.sheet_NA}, ns={self.ns})')
+             f'sheet_NA={self.sheet_NA}, ns={self.ns}, '
+             f'ni0={self.ni0}, ni={self.ni})')
         h = hashlib.md5(s.encode())
         h.update(np.ascontiguousarray(self.psf_volume).tobytes())
         return h.hexdigest()
@@ -179,7 +180,7 @@ class LightSheetPSF:
             parent_node, name=self.fname, obj=self.psf_volume,
             title='Light-sheet PSF volume (z, y, x), psfmodels vectorial')
         for name in ['dxy', 'nx', 'dz', 'nz_half', 'det_NA', 'em_wvl',
-                     'ex_wvl', 'sheet_NA', 'ns', 'kind']:
+                     'ex_wvl', 'sheet_NA', 'ns', 'ni0', 'ni', 'kind']:
             file_handle.set_node_attr(tarray, name, getattr(self, name))
         return tarray
 

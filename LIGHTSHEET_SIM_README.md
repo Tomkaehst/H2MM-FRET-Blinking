@@ -25,14 +25,24 @@ and validation plots, extending the H2MM-FRET-Blinking simulation suite
     analytical expectations before any data is generated.
 - `lightsheet_psf.py` — the `LightSheetPSF` class and the camera-frame
   rendering (`render_frame_expected`, `render_camera_frames`).
-- observation-time statistics per molecule (section 5): each contiguous
+- 20 % glycerol estimate (section 3): viscosity 1.8x -> D drops from 10 to
+  5.6 um²/s, so observation times lengthen 1.8x (mean 104 -> 188 ms, ~5.4
+  frames per molecule); the refractive-index mismatch (sample 1.359 behind a
+  water-design objective, ni0 = 1.333) broadens the detection PSF laterally
+  (0.35 -> 0.45 um FWHM) and axially (1.75 -> 2.00 um), doubles the axial
+  asymmetry and cuts the Strehl-like peak ratio to ~0.44.
+- observation-time statistics per molecule (section 6): each contiguous
   stay inside the sheet (excitation > 1/e²) is one crossing; ~31% of
   crossings are detectable (>= 100 photons), with a mean observation time
-  of ~100 ms (~3 camera frames), limited by diffusion out of the sheet.
+  of ~104 ms (~3 camera frames), limited by diffusion out of the sheet.
 - `lightsheet_sim_plots/` — validation and result figures (also embedded
-  in the executed notebook), including
-  `fig4_observation_time_stats.png` (crossing-duration distribution,
-  photons vs observation time, frames per detectable molecule).
+  in the executed notebook):
+  - `fig1_psf_xy_xz_projections.png` — XY focal-plane slice, XY max
+    projection, XZ projection and lateral/axial line profiles
+  - `fig2_glycerol_effect.png` — axial and lateral detection PSF, water
+    vs 20 % glycerol (RI mismatch), and the mismatched effective PSF
+  - `fig3_camera_frames.png`, `fig4_intensity_stats.png`,
+    `fig5_observation_time_stats.png`
 
 ## Validation numbers
 
@@ -48,8 +58,13 @@ and validation plots, extending the H2MM-FRET-Blinking simulation suite
 | Photon conservation | exact at every defocus | sum-normalized kernels |
 | Sheet crossings per particle per 100 s | ~72 (10726 / 15) | diffusion in/out of the ~2 um sheet |
 | Detectable crossings (>= 100 photons) | 31% | — |
-| Observation time, detectable crossings | mean 101 ms, median 39 ms, max 1.18 s | ~ w0²/D scaling |
-| Camera frames per detectable molecule | mean 2.95, median 2, P90 7 | t_frame = 50 ms |
+| Observation time, detectable crossings | mean 104 ms, median 41 ms, max 1.37 s | ~ w0²/D scaling |
+| Camera frames per detectable molecule | mean 3.01, median 2, P90 7 | t_frame = 50 ms |
+| 20 % glycerol: D | 5.56 µm²/s | 10 / 1.8 (viscosity ratio) |
+| 20 % glycerol: mean observation time | 188 ms | 104 ms x 1.8 |
+| 20 % glycerol: lateral det. FWHM | 0.45 µm | 0.35 µm (water, matched) |
+| 20 % glycerol: axial det. FWHM | 2.00 µm | 1.75 µm (water, matched) |
+| 20 % glycerol: Strehl-like peak ratio | ~0.44 | spherical aberration (ns 1.359 vs ni0 1.333) |
 
 Parameters of the run: detection NA 0.8, em. 580 nm, ex. 488 nm,
 sheet NA 0.08 (w0 = 1.94 µm), 50 kcps/particle at sheet center,
