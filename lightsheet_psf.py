@@ -64,7 +64,13 @@ class LightSheetPSF:
                  det_NA=0.8, em_wvl=0.58, ex_wvl=0.488, sheet_NA=0.08,
                  ns=1.333, ni0=1.333, ni=1.333, ng0=1.333, ng=1.333,
                  tg=170.0, tg0=170.0, ti0=150.0,
+                 sheet_extent_x=np.inf, sheet_extent_y=np.inf,
                  psf_pytables=None):
+        """`sheet_extent_x`, `sheet_extent_y`: 1/e^2 half-widths (um) of the
+        illuminated field along the sheet (x) and along the beam propagation
+        direction (y). `np.inf` (default) = uniform, infinitely wide sheet.
+        A finite `sheet_extent_x` produces the edge vignetting of a real,
+        finite light sheet on the camera frames."""
         self.fname = 'lightsheet_psf'
         if psf_pytables is not None:
             if 'kind' in psf_pytables.attrs:
@@ -73,12 +79,18 @@ class LightSheetPSF:
             for name in ['dxy', 'nx', 'dz', 'nz_half', 'det_NA', 'em_wvl',
                          'ex_wvl', 'sheet_NA', 'ns', 'ni0', 'ni']:
                 setattr(self, name, psf_pytables.get_attr(name))
+            self.sheet_extent_x = psf_pytables.attrs['sheet_extent_x'] \
+                if 'sheet_extent_x' in psf_pytables.attrs else np.inf
+            self.sheet_extent_y = psf_pytables.attrs['sheet_extent_y'] \
+                if 'sheet_extent_y' in psf_pytables.attrs else np.inf
         else:
             self.dxy, self.nx = dxy, nx
             self.dz, self.nz_half = dz, nz_half
             self.det_NA, self.em_wvl = det_NA, em_wvl
             self.ex_wvl, self.sheet_NA = ex_wvl, sheet_NA
             self.ns, self.ni0, self.ni = ns, ni0, ni
+            self.sheet_extent_x = sheet_extent_x
+            self.sheet_extent_y = sheet_extent_y
             self._build_psf(ns=ns, ni0=ni0, ni=ni, ng0=ng0, ng=ng,
                             tg=tg, tg0=tg0, ti0=ti0)
         self._build_axes()
@@ -215,11 +227,40 @@ class LightSheetPSF:
         s = k.sum(axis=(-1, -2), keepdims=True)
         return np.divide(k, s, out=np.zeros_like(k), where=s > 0)
 
-    def excitation_weights(self, z):
-        """Excitation sheet intensity at heights `z` (meters)."""
+    @property
+    def rayleigh_range(self):
+        """Rayleigh range of the sheet beam (um): pi * w0^2 / lambda."""
+        return np.pi * self.sheet_waist**2 / self.ex_wvl
+
+    def excitation_weights(self, z, x=None, y=None):
+        """Excitation sheet intensity at particle positions (meters).
+
+        Gaussian-beam light sheet, thin in z and propagating along y:
+        - thickness w(y) = w0 * sqrt(1 + (y/zR)^2), with the Rayleigh range
+          zR = pi*w0^2/lambda (on-axis intensity stays 1 along y; the beam
+          divergence only thickens the sheet)
+        - `sheet_extent_x` (um): 1/e^2 half-width of the illuminated field
+          along the sheet (x) — the finite footprint of the illumination
+          optics; np.inf = uniform
+        - `sheet_extent_y` (um): optional 1/e^2 envelope along the
+          propagation direction (y); np.inf = none
+
+        `x` and `y` are optional for backward compatibility: without them
+        the profile is the z-only Gaussian (uniform laterally).
+        """
         z = np.asarray(z, dtype=np.float64)
-        w0 = self.sheet_waist  # micrometers
-        return np.exp(-2 * (z * 1e6 / w0) ** 2)
+        if y is not None:
+            y = np.broadcast_to(np.asarray(y, dtype=np.float64), z.shape)
+        else:
+            y = np.zeros_like(z)
+        w_y = self.sheet_waist * np.sqrt(1 + (y * 1e6 / self.rayleigh_range)**2)
+        w = np.exp(-2 * (z * 1e6 / w_y)**2)
+        if x is not None and np.isfinite(self.sheet_extent_x):
+            x = np.broadcast_to(np.asarray(x, dtype=np.float64), z.shape)
+            w = w * np.exp(-2 * (x * 1e6 / self.sheet_extent_x)**2)
+        if np.isfinite(self.sheet_extent_y):
+            w = w * np.exp(-2 * (y * 1e6 / self.sheet_extent_y)**2)
+        return w
 
     def render_frame_expected(self, x, y, z, t_slice=slice(None),
                               em_rate=50e3, t_step=1e-3, roi=128,
@@ -250,7 +291,8 @@ class LightSheetPSF:
             pixel_size_m = self.dxy * 1e-6
         half = roi / 2 * pixel_size_m
         edges = np.linspace(-half, half, roi + 1)
-        exc = self.excitation_weights(z[:, t_slice])
+        exc = self.excitation_weights(z[:, t_slice],
+                                      x=x[:, t_slice], y=y[:, t_slice])
         weights = em_rate * t_step * exc
         # Bin the emission of each particle separately per z slice, so
         # that each particle is convolved with the detection kernel at
