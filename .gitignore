@@ -3,3 +3,4 @@ pybromo_*
 *.h5
 *.mov
 **/__pycache__/
+/.ipynb_checkpoints/
