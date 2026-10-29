@@ -1,6 +1,7 @@
 pybromo_*
 .DS_Store
 *.h5
+*.hdf5
 *.mov
 **/__pycache__/
 .ipynb_checkpoints/
