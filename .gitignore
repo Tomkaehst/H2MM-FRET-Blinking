@@ -2,4 +2,4 @@ pybromo_*
 .DS_Store
 *.h5
 *.mov
-*__pycache
+**/__pycache__/
