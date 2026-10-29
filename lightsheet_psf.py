@@ -63,10 +63,18 @@ class LightSheetPSF:
     def __init__(self, dxy=0.2, nx=51, dz=0.25, nz_half=24,
                  det_NA=0.8, em_wvl=0.58, ex_wvl=0.488, sheet_NA=0.08,
                  ns=1.333, ni0=1.333, ni=1.333, ng0=1.333, ng=1.333,
-                 tg=170.0, tg0=170.0, ti0=150.0,
+                 tg=170.0, tg0=170.0, ti0=150.0, pz=0.0,
                  sheet_extent_x=np.inf, sheet_extent_y=np.inf,
                  psf_pytables=None):
-        """`sheet_extent_x`, `sheet_extent_y`: 1/e^2 half-widths (um) of the
+        """`pz`: depth of the point source (the light sheet) above the
+        coverslip, in micrometers. `pz=0` (default) keeps the old behavior
+        (source at the coverslip). For an oil-immersion objective into an
+        aqueous sample, a finite `pz` produces the depth-dependent spherical
+        aberration of the water layer (Gibson-Lanni), and the z grid becomes
+        ABSOLUTE depths (pz + relative defocus), so each plane of the stack
+        carries its own aberration.
+
+        `sheet_extent_x`, `sheet_extent_y`: 1/e^2 half-widths (um) of the
         illuminated field along the sheet (x) and along the beam propagation
         direction (y). `np.inf` (default) = uniform, infinitely wide sheet.
         A finite `sheet_extent_x` produces the edge vignetting of a real,
@@ -79,6 +87,7 @@ class LightSheetPSF:
             for name in ['dxy', 'nx', 'dz', 'nz_half', 'det_NA', 'em_wvl',
                          'ex_wvl', 'sheet_NA', 'ns', 'ni0', 'ni']:
                 setattr(self, name, psf_pytables.get_attr(name))
+            self.pz = psf_pytables.attrs['pz'] if 'pz' in psf_pytables.attrs else 0.0
             self.sheet_extent_x = psf_pytables.attrs['sheet_extent_x'] \
                 if 'sheet_extent_x' in psf_pytables.attrs else np.inf
             self.sheet_extent_y = psf_pytables.attrs['sheet_extent_y'] \
@@ -89,6 +98,7 @@ class LightSheetPSF:
             self.det_NA, self.em_wvl = det_NA, em_wvl
             self.ex_wvl, self.sheet_NA = ex_wvl, sheet_NA
             self.ns, self.ni0, self.ni = ns, ni0, ni
+            self.pz = pz
             self.sheet_extent_x = sheet_extent_x
             self.sheet_extent_y = sheet_extent_y
             self._build_psf(ns=ns, ni0=ni0, ni=ni, ng0=ng0, ng=ng,
@@ -100,14 +110,30 @@ class LightSheetPSF:
 
     def _build_psf(self, ns, ni0, ni, ng0, ng, tg, tg0, ti0):
         """Compute the effective light-sheet PSF volume with psfmodels."""
-        # Detection PSF: widefield (no pinhole) vectorial PSF on a z stack
-        det_psf = psfm.make_psf(
-            2 * self.nz_half + 1, self.nx,
-            dxy=self.dxy, dz=self.dz, NA=self.det_NA, wvl=self.em_wvl,
-            ns=ns, ni0=ni0, ni=ni, ng0=ng0, ng=ng,
-            tg=tg, tg0=tg0, ti0=ti0,
-            model='vectorial', normalize=True)
-        # z axis of make_psf is relative defocus from the focal plane
+        # Detection PSF: widefield (no pinhole) vectorial PSF on a z stack.
+        # With pz = 0 the z axis is the relative defocus (old behavior).
+        # With pz > 0 the stack is computed for a point source AT DEPTH pz
+        # above the coverslip, and the z axis becomes ABSOLUTE depth:
+        # each image plane pz + relative defocus carries its own aberration
+        # (the physically correct model for depth-dependent deterioration).
+        if self.pz > 0:
+            z_abs = self.z_grid_um + self.pz        # absolute depths (um)
+            det_psf = psfm.make_psf(
+                z_abs, self.nx,
+                dxy=self.dxy, dz=self.dz, pz=self.pz,
+                NA=self.det_NA, wvl=self.em_wvl,
+                ns=ns, ni0=ni0, ni=ni, ng0=ng0, ng=ng,
+                tg=tg, tg0=tg0, ti0=ti0,
+                model='vectorial', normalize=True)
+        else:
+            det_psf = psfm.make_psf(
+                2 * self.nz_half + 1, self.nx,
+                dxy=self.dxy, dz=self.dz, NA=self.det_NA, wvl=self.em_wvl,
+                ns=ns, ni0=ni0, ni=ni, ng0=ng0, ng=ng,
+                tg=tg, tg0=tg0, ti0=ti0,
+                model='vectorial', normalize=True)
+        # z axis of the stack: relative defocus from the sheet plane
+        # (the grid stored in z_um / z_grid_um); the depth is in self.pz
         self.detection_psf = det_psf.astype(np.float64)
 
         # Excitation light sheet: Gaussian intensity profile in z
@@ -171,7 +197,7 @@ class LightSheetPSF:
              f'nz_half={self.nz_half}, det_NA={self.det_NA}, '
              f'em_wvl={self.em_wvl}, ex_wvl={self.ex_wvl}, '
              f'sheet_NA={self.sheet_NA}, ns={self.ns}, '
-             f'ni0={self.ni0}, ni={self.ni})')
+             f'ni0={self.ni0}, ni={self.ni}, pz={self.pz})')
         h = hashlib.md5(s.encode())
         h.update(np.ascontiguousarray(self.psf_volume).tobytes())
         return h.hexdigest()
@@ -180,7 +206,7 @@ class LightSheetPSF:
         return (f'LightSheetPSF(dxy={self.dxy}um, nx={self.nx}, '
                 f'dz={self.dz}um, nz_half={self.nz_half}, '
                 f'det_NA={self.det_NA}, em_wvl={self.em_wvl}um, '
-                f'ex_wvl={self.ex_wvl}um, sheet_NA={self.sheet_NA})')
+                f'ex_wvl={self.ex_wvl}um, sheet_NA={self.sheet_NA}, pz={self.pz}um)')
 
     def to_hdf5(self, file_handle, parent_node='/'):
         """Store the PSF volume in `file_handle` (pytables) in `parent_node`.
@@ -192,7 +218,7 @@ class LightSheetPSF:
             parent_node, name=self.fname, obj=self.psf_volume,
             title='Light-sheet PSF volume (z, y, x), psfmodels vectorial')
         for name in ['dxy', 'nx', 'dz', 'nz_half', 'det_NA', 'em_wvl',
-                     'ex_wvl', 'sheet_NA', 'ns', 'ni0', 'ni', 'kind']:
+                     'ex_wvl', 'sheet_NA', 'ns', 'ni0', 'ni', 'pz', 'kind']:
             file_handle.set_node_attr(tarray, name, getattr(self, name))
         return tarray
 
